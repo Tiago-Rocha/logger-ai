@@ -1,0 +1,6 @@
+.DS_Store
+docs/.DS_Store
+
+# Dart tooling directories
+.dart_tool/
+sdk/dart/.dart_tool/
