@@ -1,9 +1,11 @@
+import 'package:logger_sdk/logger_sdk.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('BatchManager', () {
     test('placeholder', () {
-      expect(true, isTrue);
+      const manager = BatchManager();
+      expect(manager, isA<BatchManager>());
     });
   });
 }
