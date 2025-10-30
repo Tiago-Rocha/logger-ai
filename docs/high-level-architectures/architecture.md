@@ -10,20 +10,20 @@
                 │
                 ▼
 ┌────────────────────────────── SDK Core ────────────────────────────────┐
-│ 1️⃣ Log Collector → [📝 ../low-level-architecture/architecture-log-collector.md]                │
+│ 1️⃣ Log Collector (see detailed architecture below)                    │
 │     - Formats message + metadata (timestamp, level, tags).             │
 │                                                                       │
-│ 2️⃣ Persistence (WAL / Queue) → [💾 ../low-level-architecture/architecture-persistance.md]      │
+│ 2️⃣ Persistence (WAL / Queue) (see detailed architecture below)        │
 │     - Writes JSON lines to rotating files (safe on crash).             │
 │                                                                       │
-│ 3️⃣ Batch Manager → [📦 ../low-level-architecture/architecture-batch-manager.md]               │
+│ 3️⃣ Batch Manager (see detailed architecture below)                    │
 │     - Groups logs by size/time. Compresses/encrypts if needed.         │
 │                                                                       │
-│ 4️⃣ Upload Manager → [📡 ../low-level-architecture/architecture-upload-manager.md]             │
+│ 4️⃣ Upload Manager (see detailed architecture below)                   │
 │     - Uses OS schedulers (WorkManager / BGTaskScheduler).              │
 │     - Retries with exponential backoff.                               │
 │                                                                       │
-│ 5️⃣ Delegate / Hooks → [🔗 ../low-level-architecture/architecture-delegate-hooks.md]           │
+│ 5️⃣ Delegate / Hooks (see detailed architecture below)                 │
 │     - onUploadSuccess / onUploadFailure callbacks.                     │
 └───────────────┬────────────────────────────────────────────────────────┘
                 │
