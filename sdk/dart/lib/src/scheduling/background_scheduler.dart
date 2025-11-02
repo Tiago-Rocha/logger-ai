@@ -9,4 +9,6 @@ abstract class BackgroundScheduler {
     required UploadSchedule schedule,
     required ScheduledUploadTask task,
   });
+
+  Future<void> cancel();
 }

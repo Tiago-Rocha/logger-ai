@@ -218,7 +218,13 @@ class TestWorld {
   }
 
   List<List<PendingBatch>> uploadRequests() =>
-      List<List<PendingBatch>>.unmodifiable(_uploadManager?.uploads ?? const []);
+      List<List<PendingBatch>>.unmodifiable(
+        _uploadManager?.uploads ?? const [],
+      );
+
+  Future<void> cancelScheduledWork() async {
+    await _sdk?.cancelScheduling();
+  }
 
   void _ensureSchedulingBootstrap() {
     deferredRuns = 0;
@@ -264,6 +270,7 @@ class FakeBackgroundScheduler implements BackgroundScheduler {
   UploadSchedule? registeredSchedule;
   ScheduledUploadTask? registeredTask;
   int fireCount = 0;
+  int cancellationCount = 0;
 
   @override
   void register({
@@ -277,10 +284,16 @@ class FakeBackgroundScheduler implements BackgroundScheduler {
   Future<void> fire() async {
     final task = registeredTask;
     if (task == null) {
-      throw StateError('No task registered.');
+      return;
     }
     fireCount += 1;
     await task();
+  }
+
+  Future<void> cancel() async {
+    cancellationCount += 1;
+    registeredTask = null;
+    registeredSchedule = null;
   }
 }
 

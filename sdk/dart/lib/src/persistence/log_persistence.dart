@@ -161,7 +161,8 @@ class FileLogPersistence {
     if (derivedHighWaterMark == null && await file.exists()) {
       final lines = await file.readAsLines();
       if (lines.isNotEmpty) {
-        final lastLine = lines.lastWhere((line) => line.isNotEmpty, orElse: () => lines.last);
+        final lastLine = lines.lastWhere((line) => line.isNotEmpty,
+            orElse: () => lines.last);
         derivedHighWaterMark = _extractRecordId(lastLine);
       }
     }

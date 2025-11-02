@@ -100,6 +100,25 @@ final List<Scenario> allScenarios = [
       expect(world.delegate.uploadSuccesses.length, equals(1));
     });
   }),
+  scenario('Host cancels scheduled uploads', (steps) {
+    steps.given('background work is registered for future runs',
+        (context) async {
+      final world = obtainWorld(context);
+      await world.configureCollector();
+      await world.appendEvent('CN-1', message: 'cancel');
+      await world.configurePeriodicUpload(const Duration(minutes: 30));
+    });
+    steps.when('the host requests cancellation', (context) async {
+      final world = obtainWorld(context);
+      await world.cancelScheduledWork();
+    });
+    steps.then('no further uploads are attempted', (context) async {
+      final world = obtainWorld(context);
+      expect(world.scheduler.cancellationCount, equals(1));
+      await world.triggerBackgroundRun();
+      expect(world.uploadManager.invocationCount, equals(0));
+    });
+  }),
   scenario('Hosts receive delivery outcomes', (steps) {
     steps.given('there is a batch ready to upload', (context) async {
       final world = obtainWorld(context);
@@ -129,7 +148,8 @@ final List<Scenario> allScenarios = [
       final world = obtainWorld(context);
       await world.configureCollector();
       await world.appendEvent('DONE-1', message: 'first');
-      world.configureUploadSuccess(highWaterMarks: {'batch_001.jsonl': 'DONE-1'});
+      world.configureUploadSuccess(
+          highWaterMarks: {'batch_001.jsonl': 'DONE-1'});
       await world.configurePeriodicUpload(const Duration(minutes: 10));
       await world.triggerBackgroundRun();
       expect(await world.pendingBatchFilenames(), isEmpty);
@@ -156,7 +176,8 @@ final List<Scenario> allScenarios = [
       final world = obtainWorld(context);
       await world.triggerBackgroundRun();
       expect(world.delegate.uploadFailures.length, equals(1));
-      world.configureUploadSuccess(highWaterMarks: {'batch_001.jsonl': 'FAIL-1'});
+      world.configureUploadSuccess(
+          highWaterMarks: {'batch_001.jsonl': 'FAIL-1'});
       await world.triggerBackgroundRun();
     });
     steps.then('state is cleaned up and the work is rescheduled',
@@ -445,10 +466,10 @@ final List<Scenario> allScenarios = [
     });
     steps.then('only the allowed number of batches are returned',
         (context) async {
-      final batches =
-          context.read<List<PendingBatch>>('selectedBatches');
+      final batches = context.read<List<PendingBatch>>('selectedBatches');
       expect(batches.length, 2);
-      expect(batches.map((b) => b.filename), containsAll(['batch_001.jsonl', 'batch_002.jsonl']));
+      expect(batches.map((b) => b.filename),
+          containsAll(['batch_001.jsonl', 'batch_002.jsonl']));
     });
   }),
 ];

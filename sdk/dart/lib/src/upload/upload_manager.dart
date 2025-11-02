@@ -23,7 +23,8 @@ class UploadResult {
   /// Populated when the upload failed.
   final Object? error;
 
-  List<String> get filenames => batchHighWaterMarks.keys.toList(growable: false);
+  List<String> get filenames =>
+      batchHighWaterMarks.keys.toList(growable: false);
 
   factory UploadResult.success({
     required Map<String, String> batchHighWaterMarks,

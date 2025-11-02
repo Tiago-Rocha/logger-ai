@@ -13,9 +13,11 @@ class LoggerSdk {
     required UploadManager uploadManager,
     UploadConditionEvaluator conditionEvaluator =
         const AllowAllConstraintEvaluator(),
+    LoggerDelegate? delegate,
   })  : _scheduler = scheduler,
         _uploadManager = uploadManager,
-        _conditionEvaluator = conditionEvaluator;
+        _conditionEvaluator = conditionEvaluator,
+        _delegate = delegate;
 
   final BackgroundScheduler _scheduler;
   final UploadManager _uploadManager;
@@ -33,6 +35,11 @@ class LoggerSdk {
       schedule: schedule,
       task: _runScheduledUpload,
     );
+  }
+
+  Future<void> cancelScheduling() async {
+    await _scheduler.cancel();
+    _currentSchedule = null;
   }
 
   void configureIntake({
@@ -69,7 +76,8 @@ class LoggerSdk {
     if (!result.isSuccess) {
       final filenames = result.filenames;
       if (filenames.isNotEmpty) {
-        _delegate?.onUploadFailure(filenames, result.error ?? Exception('upload failed'));
+        _delegate?.onUploadFailure(
+            filenames, result.error ?? Exception('upload failed'));
       }
       return;
     }
