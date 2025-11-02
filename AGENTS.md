@@ -17,3 +17,18 @@ Use Conventional Commits (`feat:`, `fix:`, `chore:`) with imperative summaries a
 
 ## Security & Configuration Tips
 Never hard-code credentials or endpoint secrets—read them from CI environment variables (`LOGGER_UPLOAD_URL`, `LOGGER_API_KEY`). Audit background upload scheduling so it honors documented constraints, and record WorkManager or BGTaskScheduler entitlement updates in `docs/permissions.md`. Rotate sample keys quarterly and scrub generated logs before committing so customer metadata never lands in git.
+
+## MCP Tooling
+Configure the Codex CLI agent with a Dart SDK documentation MCP so mobile developers can reach language references quickly. Add the server to your local agent config (for example `~/.config/codex/agents.yaml`) using a stanza similar to:
+
+```yaml
+mcpServers:
+  - name: dart-docs
+    command:
+      - ./scripts/mcp/dart-docs.sh
+      - --stdio
+    env:
+      DART_DOCSET: /Applications/Dash.app/Contents/SharedSupport/docsets/Dart.docset
+```
+
+Set `DART_DOCSET` to your local docset path (Zeal, Dash, or custom export) and restart the CLI so the Dart doc server registers. Adjust `MCP_DOCS_BIN` if you keep the `mcp-docs` executable somewhere else. Update this section if we standardize additional MCPs.
