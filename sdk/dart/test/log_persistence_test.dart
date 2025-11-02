@@ -68,8 +68,10 @@ void main() {
       await persistence.initialize();
       final first = fakeEvent('HW1');
       final second = fakeEvent('HW2');
+      final third = fakeEvent('HW3');
       await persistence.append(first);
       await persistence.append(second);
+      await persistence.append(third);
 
       final batches = await persistence.pendingBatches();
       expect(batches, isNotEmpty);
@@ -80,6 +82,7 @@ void main() {
       );
 
       expect(fileSystem.file('/logs/batch_001.jsonl').existsSync(), isFalse);
+      expect(fileSystem.file('/logs/batch_002.jsonl').existsSync(), isTrue);
 
       final state = await persistence.loadState();
       expect(state.lastUploadedRecordId, second.recordId);
