@@ -253,6 +253,36 @@ final List<Scenario> allScenarios = [
       expect(entry['metadata'], containsPair('timestamp', expectedTime));
     });
   }),
+  scenario('Collector snapshots payload state at record time', (steps) {
+    steps.given('a collector configured with file persistence',
+        (context) async {
+      final world = obtainWorld(context);
+      await world.configureCollector();
+    });
+    steps.when('the host mutates the payload after recording', (context) async {
+      final world = obtainWorld(context);
+      final payload = {'message': 'before'};
+      context.write('mutablePayload', payload);
+      await world.recordViaCollector(
+        recordId: 'COL-A3',
+        payload: payload,
+        metadata: null,
+      );
+      payload['message'] = 'after';
+    });
+    steps.then('the persisted entry retains the original payload snapshot',
+        (context) async {
+      final world = obtainWorld(context);
+      final payload = context.read<Map<String, Object?>>('mutablePayload');
+      expect(payload['message'], 'after');
+
+      final contents = await world.readBatchContents('batch_001.jsonl');
+      final entries = world.decodeEntries(contents);
+      expect(entries.length, 1);
+      final entry = entries.single;
+      expect(entry['payload'], {'message': 'before'});
+    });
+  }),
   scenario('Collector enforces required record identifiers', (steps) {
     steps.given('a collector with persistence configured', (context) async {
       final world = obtainWorld(context);
