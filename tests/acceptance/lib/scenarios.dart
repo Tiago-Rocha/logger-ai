@@ -9,7 +9,7 @@ final List<Scenario> allScenarios = [
     steps.given('the host configures a periodic upload policy',
         (context) async {
       final world = obtainWorld(context);
-      world.configurePeriodicUpload(const Duration(minutes: 15));
+      await world.configurePeriodicUpload(const Duration(minutes: 15));
     });
     steps.when('the scheduler triggers a background run', (context) async {
       final world = obtainWorld(context);
@@ -42,7 +42,7 @@ final List<Scenario> allScenarios = [
     steps.given('the host requests uploads only on wi-fi while charging',
         (context) async {
       final world = obtainWorld(context);
-      world.configureConstraints(
+      await world.configureConstraints(
         const UploadConstraints(
           wifiOnly: true,
           requiresCharging: true,
@@ -116,4 +116,81 @@ final List<Scenario> allScenarios = [
       throw const PendingStep();
     });
   }, enabled: false),
+  scenario('Persistence rotates batches when record limits are reached',
+      (steps) {
+    steps.given('file persistence rotates after two records', (context) async {
+      final world = obtainWorld(context);
+      await world.configurePersistence(
+        maxRecordsPerFile: 2,
+        maxBytesPerFile: 1024,
+      );
+    });
+    steps.when('three log events are recorded', (context) async {
+      final world = obtainWorld(context);
+      final encoded = <String>[];
+      encoded.add(await world.appendEvent('01AA', message: 'first'));
+      encoded.add(await world.appendEvent('01AB', message: 'second'));
+      encoded.add(await world.appendEvent('01AC', message: 'third'));
+      context.write('encodedLines', encoded);
+    });
+    steps.then('two NDJSON files contain the stored records in order',
+        (context) async {
+      final world = obtainWorld(context);
+      final encoded = context.read<List<String>>('encodedLines');
+      final firstFile = await world.readBatchContents('batch_001.jsonl');
+      final secondFile = await world.readBatchContents('batch_002.jsonl');
+
+      expect(
+        firstFile,
+        '${encoded[0]}\n${encoded[1]}\n',
+        reason: 'first batch should contain the first two records',
+      );
+      expect(
+        secondFile,
+        '${encoded[2]}\n',
+        reason: 'second batch should contain the third record',
+      );
+
+      final state = await world.loadPersistenceState();
+      expect(state.activeBatchFile, 'batch_002.jsonl');
+    });
+  }),
+  scenario('Uploaded batches advance the high-water mark', (steps) {
+    steps.given('a persisted queue with multiple batches', (context) async {
+      final world = obtainWorld(context);
+      await world.configurePersistence(
+        maxRecordsPerFile: 2,
+        maxBytesPerFile: 1024,
+      );
+      await world.appendEvent('HW1', message: 'first');
+      await world.appendEvent('HW2', message: 'second');
+      await world.appendEvent('HW3', message: 'third');
+      final batches = await world.pendingBatches();
+      context.write('pendingBatches', batches);
+    });
+    steps.when('the oldest batch is marked uploaded with record HW2',
+        (context) async {
+      final world = obtainWorld(context);
+      final batches = context.read<List<PendingBatch>>('pendingBatches');
+      final oldest = batches.first;
+      await world.markBatchUploaded(
+        oldest.filename,
+        highWaterMark: 'HW2',
+      );
+    });
+    steps.then('state reflects the high-water mark and remaining batch',
+        (context) async {
+      final world = obtainWorld(context);
+      final state = await world.loadPersistenceState();
+      expect(state.lastUploadedRecordId, 'HW2');
+      expect(state.activeBatchFile, 'batch_002.jsonl');
+
+      expect(world.batchFileExists('batch_001.jsonl'), isFalse);
+      expect(world.batchFileExists('batch_002.jsonl'), isTrue);
+
+      final remaining = await world.pendingBatches();
+      expect(remaining.length, 1);
+      expect(remaining.first.filename, 'batch_002.jsonl');
+    });
+  }),
 ];

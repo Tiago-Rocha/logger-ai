@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file/memory.dart';
 import 'package:logger_sdk/logger_sdk.dart';
 
 import 'logger_acceptance_harness.dart';
@@ -15,25 +18,30 @@ TestWorld obtainWorld(StepContext context) {
 }
 
 class TestWorld {
-  late final FakeBackgroundScheduler scheduler;
-  late final FakeUploadManager uploadManager;
-  late final FakeConditionEvaluator conditionEvaluator;
-  late final LoggerSdk sdk;
+  FakeBackgroundScheduler get scheduler => _scheduler!;
+  FakeUploadManager get uploadManager => _uploadManager!;
+  FakeConditionEvaluator get conditionEvaluator => _conditionEvaluator!;
+  LoggerSdk get sdk => _sdk!;
 
-  Duration? _configuredFrequency;
-  UploadConstraints? _configuredConstraints;
+  FileLogPersistence get persistence => _persistence!;
+  MemoryFileSystem get fileSystem => _fileSystem!;
+  LogPersistenceConfig get persistenceConfig => _persistenceConfig!;
+
+  Duration? get configuredFrequency => _configuredFrequency;
+  UploadConstraints? get configuredConstraints => _configuredConstraints;
+
   int deferredRuns = 0;
 
-  void configurePeriodicUpload(Duration frequency) {
-    _bootstrap();
+  Future<void> configurePeriodicUpload(Duration frequency) async {
+    _ensureSchedulingBootstrap();
     _configuredFrequency = frequency;
     sdk.configureScheduling(
       UploadSchedule.periodic(frequency: frequency),
     );
   }
 
-  void configureConstraints(UploadConstraints constraints) {
-    _bootstrap();
+  Future<void> configureConstraints(UploadConstraints constraints) async {
+    _ensureSchedulingBootstrap();
     _configuredFrequency = const Duration(minutes: 15);
     _configuredConstraints = constraints;
     sdk.configureScheduling(
@@ -57,21 +65,96 @@ class TestWorld {
     await scheduler.fire();
   }
 
-  Duration? get configuredFrequency => _configuredFrequency;
-  UploadConstraints? get configuredConstraints => _configuredConstraints;
-
-  void _bootstrap() {
-    scheduler = FakeBackgroundScheduler();
-    uploadManager = FakeUploadManager();
-    conditionEvaluator = FakeConditionEvaluator(
-      onDenied: () => deferredRuns += 1,
+  Future<void> configurePersistence({
+    required int maxRecordsPerFile,
+    required int maxBytesPerFile,
+  }) async {
+    _fileSystem = MemoryFileSystem();
+    _serializer = HarnessJsonSerializer();
+    _persistenceConfig = LogPersistenceConfig(
+      rootDirectory: '/logs',
+      metadataFileName: 'state.json',
+      filePrefix: 'batch_',
+      fileExtension: '.jsonl',
+      maxRecordsPerFile: maxRecordsPerFile,
+      maxBytesPerFile: maxBytesPerFile,
     );
-    sdk = LoggerSdk(
-      scheduler: scheduler,
-      uploadManager: uploadManager,
-      conditionEvaluator: conditionEvaluator,
+    _persistence = FileLogPersistence(
+      fileSystem: _fileSystem!,
+      serializer: _serializer!,
+      config: _persistenceConfig!,
+    );
+    await _persistence!.initialize();
+  }
+
+  Future<String> appendEvent(String recordId, {required String message}) async {
+    final event = LogEvent(
+      recordId: recordId,
+      payload: {'message': message},
+    );
+    await persistence.append(event);
+    return _serializer!.encode(event);
+  }
+
+  Future<String> readBatchContents(String filename) async {
+    final file =
+        fileSystem.file('${persistenceConfig.rootDirectory}/$filename');
+    if (!await file.exists()) {
+      return '';
+    }
+    return file.readAsString();
+  }
+
+  bool batchFileExists(String filename) {
+    final file =
+        fileSystem.file('${persistenceConfig.rootDirectory}/$filename');
+    return file.existsSync();
+  }
+
+  Future<List<PendingBatch>> pendingBatches() async {
+    return persistence.pendingBatches();
+  }
+
+  Future<void> markBatchUploaded(
+    String filename, {
+    required String highWaterMark,
+  }) async {
+    await persistence.markBatchUploaded(
+      filename,
+      highWaterMark: highWaterMark,
     );
   }
+
+  Future<LogPersistenceState> loadPersistenceState() async {
+    return persistence.loadState();
+  }
+
+  void _ensureSchedulingBootstrap() {
+    deferredRuns = 0;
+    _scheduler = FakeBackgroundScheduler();
+    _uploadManager = FakeUploadManager();
+    _conditionEvaluator = FakeConditionEvaluator(
+      onDenied: () => deferredRuns += 1,
+    );
+    _sdk = LoggerSdk(
+      scheduler: _scheduler!,
+      uploadManager: _uploadManager!,
+      conditionEvaluator: _conditionEvaluator!,
+    );
+  }
+
+  FakeBackgroundScheduler? _scheduler;
+  FakeUploadManager? _uploadManager;
+  FakeConditionEvaluator? _conditionEvaluator;
+  LoggerSdk? _sdk;
+
+  MemoryFileSystem? _fileSystem;
+  HarnessJsonSerializer? _serializer;
+  FileLogPersistence? _persistence;
+  LogPersistenceConfig? _persistenceConfig;
+
+  Duration? _configuredFrequency;
+  UploadConstraints? _configuredConstraints;
 }
 
 class FakeBackgroundScheduler implements BackgroundScheduler {
@@ -115,18 +198,27 @@ class FakeConditionEvaluator implements UploadConditionEvaluator {
   bool hasWifi = true;
   bool isCharging = true;
   int evaluations = 0;
-  int denials = 0;
 
   @override
   bool canRun(UploadConstraints constraints) {
     evaluations += 1;
-    final canRun = (!constraints.wifiOnly || hasWifi) &&
-        (!constraints.requiresCharging || isCharging);
-    if (!canRun) {
-      denials += 1;
+    final meetsWifi = !constraints.wifiOnly || hasWifi;
+    final meetsCharging = !constraints.requiresCharging || isCharging;
+    final allowed = meetsWifi && meetsCharging;
+    if (!allowed) {
       onDenied();
     }
-    return canRun;
+    return allowed;
+  }
+}
+
+class HarnessJsonSerializer extends JsonSerializer {
+  @override
+  String encode(LogEvent event) {
+    return jsonEncode({
+      'recordId': event.recordId,
+      'payload': event.payload,
+    });
   }
 }
 
