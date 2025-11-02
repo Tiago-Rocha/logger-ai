@@ -6,9 +6,9 @@
 - ✅ Coverage aggregation is wired via `./scripts/test-flutter.sh`, and usage instructions now live in `AGENTS.md`.
 
 ## Phase 2 – Event Intake & Persistence
-- In progress: persistence acceptance scenarios for rotation and high-water marks are green; file-backed storage now fully implemented with metadata snapshots.
-- Next: drive collector enrichment and domain model behaviour via new acceptance specs (e.g., metadata propagation) before tightening unit coverage.
-- Update unit/integration suites once collector and persistence foundations stabilize to ensure coverage captures these paths.
+- In progress: persistence acceptance scenarios for rotation/high-water marks and collector flows (metadata propagation, validation) are green; file-backed storage handles metadata snapshots.
+- Next: continue expanding collector behaviours (payload normalization, delegate hooks) and introduce targeted unit coverage once acceptance surface stabilizes.
+- Update unit/integration suites to enforce ≥85% coverage after core intake pipeline is feature-complete.
 
 ## Phase 3 – Batching & Upload Orchestration
 - TDD the batch manager to respect policy thresholds and reuse across foreground/background runs.

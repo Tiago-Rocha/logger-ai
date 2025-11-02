@@ -225,6 +225,34 @@ final List<Scenario> allScenarios = [
       });
     });
   }),
+  scenario('Collector populates metadata when omitted', (steps) {
+    steps.given('a collector with a deterministic clock', (context) async {
+      final world = obtainWorld(context);
+      context.write('collectorClock', DateTime.utc(2025, 5, 12, 10));
+      await world.configureCollector(
+        clockTime: context.read('collectorClock'),
+      );
+    });
+    steps.when('the host records an event without metadata', (context) async {
+      final world = obtainWorld(context);
+      await world.recordViaCollector(
+        recordId: 'COL-A2',
+        payload: {'message': 'default metadata'},
+        metadata: null,
+      );
+    });
+    steps.then('the SDK stamps the entry with the current clock timestamp',
+        (context) async {
+      final world = obtainWorld(context);
+      final expectedTime =
+          context.read<DateTime>('collectorClock').toUtc().toIso8601String();
+      final contents = await world.readBatchContents('batch_001.jsonl');
+      final entries = world.decodeEntries(contents);
+      expect(entries.length, 1);
+      final entry = entries.single;
+      expect(entry['metadata'], containsPair('timestamp', expectedTime));
+    });
+  }),
   scenario('Collector enforces required record identifiers', (steps) {
     steps.given('a collector with persistence configured', (context) async {
       final world = obtainWorld(context);

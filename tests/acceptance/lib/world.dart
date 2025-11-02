@@ -89,12 +89,17 @@ class TestWorld {
     await _persistence!.initialize();
   }
 
-  Future<void> configureCollector() async {
+  Future<void> configureCollector({DateTime? clockTime}) async {
     await configurePersistence(
       maxRecordsPerFile: 10,
       maxBytesPerFile: 1024 * 1024,
     );
-    _collector = LogCollector(persistence: _persistence!);
+    final clock = clockTime == null ? null : (() => clockTime.toUtc());
+    _collector = LogCollector(
+      persistence: _persistence!,
+      clock: clock,
+    );
+    lastCollectorError = null;
   }
 
   Future<String> appendEvent(String recordId, {required String message}) async {
