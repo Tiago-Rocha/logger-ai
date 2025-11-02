@@ -216,13 +216,34 @@ final List<Scenario> allScenarios = [
       final contents = await world.readBatchContents('batch_001.jsonl');
       final entries = world.decodeEntries(contents);
       expect(entries.length, 1);
-      final entry = entries.single as Map<String, Object?>;
+      final entry = entries.single;
       expect(entry['recordId'], 'COL-A1');
       expect(entry['payload'], {'message': 'collected'});
       expect(entry['metadata'], {
         'timestamp': '2025-01-01T00:00:00.000Z',
         'attributes': {'session_id': 'abc'},
       });
+    });
+  }),
+  scenario('Collector enforces required record identifiers', (steps) {
+    steps.given('a collector with persistence configured', (context) async {
+      final world = obtainWorld(context);
+      await world.configureCollector();
+    });
+    steps.when('the host attempts to record with an empty identifier',
+        (context) async {
+      final world = obtainWorld(context);
+      await world.attemptCollectorRecord(
+        recordId: '',
+        payload: {'message': 'invalid'},
+      );
+    });
+    steps.then('the SDK rejects the record without persisting it',
+        (context) async {
+      final world = obtainWorld(context);
+      expect(world.lastCollectorError, isA<ArgumentError>());
+      final contents = await world.readBatchContents('batch_001.jsonl');
+      expect(contents.trim(), isEmpty);
     });
   }),
 ];

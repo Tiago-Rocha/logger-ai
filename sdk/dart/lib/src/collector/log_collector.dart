@@ -21,6 +21,9 @@ class LogCollector {
     required Map<String, Object?> payload,
     LogMetadata? metadata,
   }) async {
+    if (recordId.trim().isEmpty) {
+      throw ArgumentError.value(recordId, 'recordId', 'must not be empty');
+    }
     final normalisedPayload = Map<String, Object?>.from(payload);
     final eventMetadata = metadata ??
         LogMetadata(

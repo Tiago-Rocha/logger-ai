@@ -32,6 +32,7 @@ class TestWorld {
   UploadConstraints? get configuredConstraints => _configuredConstraints;
 
   int deferredRuns = 0;
+  Object? lastCollectorError;
 
   Future<void> configurePeriodicUpload(Duration frequency) async {
     _ensureSchedulingBootstrap();
@@ -136,6 +137,20 @@ class TestWorld {
     );
   }
 
+  Future<void> attemptCollectorRecord({
+    required String recordId,
+    required Map<String, Object?> payload,
+  }) async {
+    try {
+      await collector.record(
+        recordId: recordId,
+        payload: payload,
+      );
+    } catch (error) {
+      lastCollectorError = error;
+    }
+  }
+
   Future<void> markBatchUploaded(
     String filename, {
     required String highWaterMark,
@@ -160,6 +175,7 @@ class TestWorld {
 
   void _ensureSchedulingBootstrap() {
     deferredRuns = 0;
+    lastCollectorError = null;
     _scheduler = FakeBackgroundScheduler();
     _uploadManager = FakeUploadManager();
     _conditionEvaluator = FakeConditionEvaluator(
