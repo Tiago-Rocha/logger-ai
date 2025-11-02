@@ -283,6 +283,55 @@ final List<Scenario> allScenarios = [
       expect(entry['payload'], {'message': 'before'});
     });
   }),
+  scenario('Collector normalizes nested payload structures', (steps) {
+    steps.given('a collector configured with file persistence',
+        (context) async {
+      final world = obtainWorld(context);
+      await world.configureCollector();
+    });
+    steps.when('the host supplies nested mutable collections', (context) async {
+      final world = obtainWorld(context);
+      final payload = <String, Object?>{
+        'list': <Object?>[
+          1,
+          2,
+          <String, Object?>{'inner': 'value'},
+        ],
+        'map': <String, Object?>{
+          'nested': <Object?>['a', 'b'],
+          'numbers': <Object?>[1, 2, 3],
+        },
+      };
+      context.write('mutablePayload', payload);
+      await world.recordViaCollector(
+        recordId: 'COL-A5',
+        payload: payload,
+      );
+      final list = payload['list'] as List<Object?>;
+      final innerMap = list[2] as Map<String, Object?>;
+      innerMap['inner'] = 'mutated';
+      final nestedMap = payload['map'] as Map<String, Object?>;
+      nestedMap['nested'] = <Object?>[];
+    });
+    steps.then('the persisted entry retains the original nested values',
+        (context) async {
+      final world = obtainWorld(context);
+      final contents = await world.readBatchContents('batch_001.jsonl');
+      final entries = world.decodeEntries(contents);
+      final entry = entries.single;
+      expect(entry['payload'], {
+        'list': [
+          1,
+          2,
+          {'inner': 'value'}
+        ],
+        'map': {
+          'nested': ['a', 'b'],
+          'numbers': [1, 2, 3],
+        },
+      });
+    });
+  }),
   scenario('Collector enforces required record identifiers', (steps) {
     steps.given('a collector with persistence configured', (context) async {
       final world = obtainWorld(context);
