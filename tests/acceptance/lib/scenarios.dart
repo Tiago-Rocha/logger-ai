@@ -193,4 +193,36 @@ final List<Scenario> allScenarios = [
       expect(remaining.first.filename, 'batch_002.jsonl');
     });
   }),
+  scenario('Collector records events with metadata into persistence', (steps) {
+    steps.given('a collector configured with file persistence',
+        (context) async {
+      final world = obtainWorld(context);
+      await world.configureCollector();
+    });
+    steps.when('the host records an event with metadata', (context) async {
+      final world = obtainWorld(context);
+      await world.recordViaCollector(
+        recordId: 'COL-A1',
+        payload: {'message': 'collected'},
+        metadata: LogMetadata(
+          timestamp: DateTime.parse('2025-01-01T00:00:00Z'),
+          attributes: const {'session_id': 'abc'},
+        ),
+      );
+    });
+    steps.then('the persisted entry keeps record, payload, and metadata',
+        (context) async {
+      final world = obtainWorld(context);
+      final contents = await world.readBatchContents('batch_001.jsonl');
+      final entries = world.decodeEntries(contents);
+      expect(entries.length, 1);
+      final entry = entries.single as Map<String, Object?>;
+      expect(entry['recordId'], 'COL-A1');
+      expect(entry['payload'], {'message': 'collected'});
+      expect(entry['metadata'], {
+        'timestamp': '2025-01-01T00:00:00.000Z',
+        'attributes': {'session_id': 'abc'},
+      });
+    });
+  }),
 ];

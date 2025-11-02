@@ -22,6 +22,7 @@ class TestWorld {
   FakeUploadManager get uploadManager => _uploadManager!;
   FakeConditionEvaluator get conditionEvaluator => _conditionEvaluator!;
   LoggerSdk get sdk => _sdk!;
+  LogCollector get collector => _collector!;
 
   FileLogPersistence get persistence => _persistence!;
   MemoryFileSystem get fileSystem => _fileSystem!;
@@ -87,6 +88,14 @@ class TestWorld {
     await _persistence!.initialize();
   }
 
+  Future<void> configureCollector() async {
+    await configurePersistence(
+      maxRecordsPerFile: 10,
+      maxBytesPerFile: 1024 * 1024,
+    );
+    _collector = LogCollector(persistence: _persistence!);
+  }
+
   Future<String> appendEvent(String recordId, {required String message}) async {
     final event = LogEvent(
       recordId: recordId,
@@ -115,6 +124,18 @@ class TestWorld {
     return persistence.pendingBatches();
   }
 
+  Future<void> recordViaCollector({
+    required String recordId,
+    required Map<String, Object?> payload,
+    LogMetadata? metadata,
+  }) async {
+    await collector.record(
+      recordId: recordId,
+      payload: payload,
+      metadata: metadata,
+    );
+  }
+
   Future<void> markBatchUploaded(
     String filename, {
     required String highWaterMark,
@@ -127,6 +148,14 @@ class TestWorld {
 
   Future<LogPersistenceState> loadPersistenceState() async {
     return persistence.loadState();
+  }
+
+  List<Map<String, Object?>> decodeEntries(String contents) {
+    return const LineSplitter()
+        .convert(contents)
+        .where((line) => line.isNotEmpty)
+        .map((line) => jsonDecode(line) as Map<String, Object?>)
+        .toList();
   }
 
   void _ensureSchedulingBootstrap() {
@@ -152,6 +181,7 @@ class TestWorld {
   HarnessJsonSerializer? _serializer;
   FileLogPersistence? _persistence;
   LogPersistenceConfig? _persistenceConfig;
+  LogCollector? _collector;
 
   Duration? _configuredFrequency;
   UploadConstraints? _configuredConstraints;
@@ -215,10 +245,15 @@ class FakeConditionEvaluator implements UploadConditionEvaluator {
 class HarnessJsonSerializer extends JsonSerializer {
   @override
   String encode(LogEvent event) {
-    return jsonEncode({
+    final map = <String, Object?>{
       'recordId': event.recordId,
       'payload': event.payload,
-    });
+    };
+    final metadata = event.metadata;
+    if (metadata != null) {
+      map['metadata'] = metadata.toJson();
+    }
+    return jsonEncode(map);
   }
 }
 

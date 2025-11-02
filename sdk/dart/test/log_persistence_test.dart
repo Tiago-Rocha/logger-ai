@@ -36,7 +36,8 @@ void main() {
       expect(fileSystem.file('/logs/state.json').existsSync(), isTrue);
     });
 
-    test('append stores NDJSON entries and rotates files by record count', () async {
+    test('append stores NDJSON entries and rotates files by record count',
+        () async {
       await persistence.initialize();
       final first = fakeEvent('01AA');
       final second = fakeEvent('01AB');
@@ -62,7 +63,8 @@ void main() {
       );
     });
 
-    test('markBatchUploaded removes batch and records high-water mark', () async {
+    test('markBatchUploaded removes batch and records high-water mark',
+        () async {
       await persistence.initialize();
       final first = fakeEvent('HW1');
       final second = fakeEvent('HW2');

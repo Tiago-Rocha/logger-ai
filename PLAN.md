@@ -6,9 +6,9 @@
 - ✅ Coverage aggregation is wired via `./scripts/test-flutter.sh`, and usage instructions now live in `AGENTS.md`.
 
 ## Phase 2 – Event Intake & Persistence
-- Flesh out domain models and the collector using unit tests derived from acceptance steps.
-- Implement `FileLogPersistence` with rotation and metadata management, validated by unit/integration tests.
-- Update acceptance scenarios to pass for persistence-focused behaviors and ensure coverage captures these paths.
+- In progress: persistence acceptance scenarios for rotation and high-water marks are green; file-backed storage now fully implemented with metadata snapshots.
+- Next: drive collector enrichment and domain model behaviour via new acceptance specs (e.g., metadata propagation) before tightening unit coverage.
+- Update unit/integration suites once collector and persistence foundations stabilize to ensure coverage captures these paths.
 
 ## Phase 3 – Batching & Upload Orchestration
 - TDD the batch manager to respect policy thresholds and reuse across foreground/background runs.
