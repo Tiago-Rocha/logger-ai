@@ -1,35 +1,42 @@
-# `Logger.log()` Flow
+# Logger Flow (Foreground → Background → Backend)
 
 ```
 Host App
   ↓
-[1] Logger.log(key, data)
-     → Example: Logger.log("txn_approved", ["id": "TX123"])
+[1] LogCollector.record(recordId, payload)
+     → normalises into LogEvent
+     → injects timestamp + metadata
+     → notifies delegate.onEventRecorded / onEventRejected
 
   ↓
-[2] Normalization Layer
-     → Converts to structured LogEvent
-     → Adds timestamp, log level, sessionId
-     → Serializes internally (JSON)
+[2] FileLogPersistence
+     → appends NDJSON to crash-safe queue
+     → rotates files by count / size
 
   ↓
-[3] Persistence Layer
-     → Writes to local file / database (WAL)
-     → Safe if app crashes or restarts
+[3] BatchManager
+     → groups pending files according to LogUploadPolicy
+     → caps batches per upload cycle
 
   ↓
-[4] Upload Manager
-     → Reads pending batches
-     → Compress + encrypt (if configured)
-     → POST to backend
+[4] BackgroundScheduler (WorkManager/BGTaskScheduler)
+     → configureScheduling(schedule)
+     → triggers `_runScheduledUpload`
+     → cancelScheduling() removes future work
 
   ↓
-[5] Delegate / Callback
-     → onSuccess(batchId)
-     → onFailure(error)
+[5] UploadManager.upload(batches)
+     → streams batches to backend (host-provided implementation)
+     → returns UploadResult with per-batch high-water marks
+     → delegate.onUploadSuccess / onUploadFailure invoked
 
   ↓
-[6] Backend
-     → Dedupe by recordId / batchId
-     → Return ACK (high-water-mark)
+[6] FileLogPersistence.markBatchUploaded
+     → deletes acknowledged files
+     → records last uploaded recordId (idempotency)
+
+  ↓
+[7] Backend
+     → deduplicates by recordId
+     → responds with acknowledgement/high-water mark
 ```
