@@ -23,6 +23,7 @@ class TestWorld {
   FakeConditionEvaluator get conditionEvaluator => _conditionEvaluator!;
   LoggerSdk get sdk => _sdk!;
   LogCollector get collector => _collector!;
+  CollectingDelegate get delegate => _delegate!;
 
   FileLogPersistence get persistence => _persistence!;
   MemoryFileSystem get fileSystem => _fileSystem!;
@@ -95,9 +96,11 @@ class TestWorld {
       maxBytesPerFile: 1024 * 1024,
     );
     final clock = clockTime == null ? null : (() => clockTime.toUtc());
+    _delegate = CollectingDelegate();
     _collector = LogCollector(
       persistence: _persistence!,
       clock: clock,
+      delegate: _delegate,
     );
     lastCollectorError = null;
   }
@@ -203,6 +206,7 @@ class TestWorld {
   FileLogPersistence? _persistence;
   LogPersistenceConfig? _persistenceConfig;
   LogCollector? _collector;
+  CollectingDelegate? _delegate;
 
   Duration? _configuredFrequency;
   UploadConstraints? _configuredConstraints;
@@ -279,3 +283,18 @@ class HarnessJsonSerializer extends JsonSerializer {
 }
 
 typedef VoidCallback = void Function();
+
+class CollectingDelegate extends LoggerDelegate {
+  final List<LogEvent> recordedEvents = [];
+  final List<Object> rejectedErrors = [];
+
+  @override
+  void onEventRecorded(LogEvent event) {
+    recordedEvents.add(event);
+  }
+
+  @override
+  void onEventRejected(String recordId, Object error) {
+    rejectedErrors.add(error);
+  }
+}

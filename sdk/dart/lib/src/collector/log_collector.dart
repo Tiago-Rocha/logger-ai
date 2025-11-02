@@ -1,6 +1,7 @@
 import '../models/log_event.dart';
 import '../models/log_metadata.dart';
 import '../persistence/log_persistence.dart';
+import '../hooks/logger_delegate.dart';
 
 typedef Clock = DateTime Function();
 
@@ -9,11 +10,14 @@ class LogCollector {
   LogCollector({
     required FileLogPersistence persistence,
     Clock? clock,
+    LoggerDelegate? delegate,
   })  : _persistence = persistence,
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _delegate = delegate;
 
   final FileLogPersistence _persistence;
   final Clock _clock;
+  final LoggerDelegate? _delegate;
 
   /// Records a structured log event.
   Future<void> record({
@@ -22,7 +26,10 @@ class LogCollector {
     LogMetadata? metadata,
   }) async {
     if (recordId.trim().isEmpty) {
-      throw ArgumentError.value(recordId, 'recordId', 'must not be empty');
+      final error =
+          ArgumentError.value(recordId, 'recordId', 'must not be empty');
+      _delegate?.onEventRejected(recordId, error);
+      throw error;
     }
     final normalisedPayload = Map<String, Object?>.from(payload);
     final eventMetadata = metadata ??
@@ -35,5 +42,6 @@ class LogCollector {
       metadata: eventMetadata,
     );
     await _persistence.append(event);
+    _delegate?.onEventRecorded(event);
   }
 }

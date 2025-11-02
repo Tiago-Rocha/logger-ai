@@ -302,6 +302,28 @@ final List<Scenario> allScenarios = [
       expect(world.lastCollectorError, isA<ArgumentError>());
       final contents = await world.readBatchContents('batch_001.jsonl');
       expect(contents.trim(), isEmpty);
+      expect(world.delegate.rejectedErrors.length, 1);
+      expect(world.delegate.recordedEvents, isEmpty);
+    });
+  }),
+  scenario('Collector notifies delegate on successful record', (steps) {
+    steps.given('a collector configured with a delegate', (context) async {
+      final world = obtainWorld(context);
+      await world.configureCollector();
+    });
+    steps.when('an event is recorded successfully', (context) async {
+      final world = obtainWorld(context);
+      await world.recordViaCollector(
+        recordId: 'COL-A4',
+        payload: {'message': 'delegate'},
+      );
+    });
+    steps.then('the delegate receives the recorded event', (context) async {
+      final world = obtainWorld(context);
+      expect(world.delegate.recordedEvents.length, 1);
+      final event = world.delegate.recordedEvents.single;
+      expect(event.recordId, 'COL-A4');
+      expect(event.payload, {'message': 'delegate'});
     });
   }),
 ];
