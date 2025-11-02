@@ -24,6 +24,7 @@ class TestWorld {
   LoggerSdk get sdk => _sdk!;
   LogCollector get collector => _collector!;
   CollectingDelegate get delegate => _delegate!;
+  BatchManager get batchManager => _batchManager!;
 
   FileLogPersistence get persistence => _persistence!;
   MemoryFileSystem get fileSystem => _fileSystem!;
@@ -133,6 +134,21 @@ class TestWorld {
     return persistence.pendingBatches();
   }
 
+  void configureBatchManager({int? maxBatchesPerCycle}) {
+    _batchManager = BatchManager(
+      persistence: persistence,
+      policy: LogUploadPolicy(maxBatchesPerCycle: maxBatchesPerCycle),
+    );
+  }
+
+  Future<List<PendingBatch>> nextBatches() async {
+    final manager = _batchManager;
+    if (manager == null) {
+      throw StateError('Batch manager not configured');
+    }
+    return manager.nextBatches();
+  }
+
   Future<void> recordViaCollector({
     required String recordId,
     required Map<String, Object?> payload,
@@ -207,6 +223,7 @@ class TestWorld {
   LogPersistenceConfig? _persistenceConfig;
   LogCollector? _collector;
   CollectingDelegate? _delegate;
+  BatchManager? _batchManager;
 
   Duration? _configuredFrequency;
   UploadConstraints? _configuredConstraints;

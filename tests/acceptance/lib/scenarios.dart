@@ -375,4 +375,30 @@ final List<Scenario> allScenarios = [
       expect(event.payload, {'message': 'delegate'});
     });
   }),
+  scenario('Batch manager enforces per-run batch limits', (steps) {
+    steps.given('existing batches exceed the policy limit', (context) async {
+      final world = obtainWorld(context);
+      await world.configurePersistence(
+        maxRecordsPerFile: 1,
+        maxBytesPerFile: 1024,
+      );
+      await world.appendEvent('BATCH-1', message: 'first');
+      await world.appendEvent('BATCH-2', message: 'second');
+      await world.appendEvent('BATCH-3', message: 'third');
+      world.configureBatchManager(maxBatchesPerCycle: 2);
+    });
+    steps.when('the batch manager prepares the next upload cycle',
+        (context) async {
+      final world = obtainWorld(context);
+      final batches = await world.nextBatches();
+      context.write('selectedBatches', batches);
+    });
+    steps.then('only the allowed number of batches are returned',
+        (context) async {
+      final batches =
+          context.read<List<PendingBatch>>('selectedBatches');
+      expect(batches.length, 2);
+      expect(batches.map((b) => b.filename), containsAll(['batch_001.jsonl', 'batch_002.jsonl']));
+    });
+  }),
 ];
