@@ -4,6 +4,7 @@
 /// populated under `lib/src`.
 library logger_sdk;
 
+export 'src/core/logger_sdk.dart';
 export 'src/logger_config.dart';
 export 'src/collector/log_collector.dart';
 export 'src/policy/log_upload_policy.dart';
@@ -15,3 +16,6 @@ export 'src/models/log_event.dart';
 export 'src/models/log_batch.dart';
 export 'src/models/log_metadata.dart';
 export 'src/utils/json_serializer.dart';
+export 'src/scheduling/upload_schedule.dart';
+export 'src/scheduling/background_scheduler.dart';
+export 'src/scheduling/constraint_evaluator.dart';

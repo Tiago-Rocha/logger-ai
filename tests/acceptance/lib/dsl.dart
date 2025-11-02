@@ -6,6 +6,7 @@ class StepContext {
   final ScenarioState state;
 
   T read<T>(String key) => state.read<T>(key);
+  T? maybeRead<T>(String key) => state.maybeRead<T>(key);
   void write(String key, Object? value) => state.write(key, value);
 }
 
@@ -15,7 +16,8 @@ class ScenarioState {
   T read<T>(String key) {
     final value = _values[key];
     if (value is! T) {
-      throw StateError('Expected `$key` to be of type $T but was ${value.runtimeType}.');
+      throw StateError(
+          'Expected `$key` to be of type $T but was ${value.runtimeType}.');
     }
     return value;
   }
@@ -23,16 +25,32 @@ class ScenarioState {
   void write(String key, Object? value) {
     _values[key] = value;
   }
+
+  T? maybeRead<T>(String key) {
+    if (!_values.containsKey(key)) {
+      return null;
+    }
+    final value = _values[key];
+    if (value is! T) {
+      throw StateError(
+          'Expected `$key` to be of type $T but was ${value.runtimeType}.');
+    }
+    return value;
+  }
+
+  bool contains(String key) => _values.containsKey(key);
 }
 
 class Scenario {
   Scenario({
     required this.name,
     required this.steps,
+    required this.isEnabled,
   });
 
   final String name;
   final List<ScenarioStep> steps;
+  final bool isEnabled;
 }
 
 class ScenarioStep {
@@ -49,13 +67,15 @@ class ScenarioStep {
 
 Scenario scenario(
   String name,
-  void Function(ScenarioBuilder builder) build,
-) {
+  void Function(ScenarioBuilder builder) build, {
+  bool enabled = true,
+}) {
   final builderInstance = ScenarioBuilder._(name);
   build(builderInstance);
   return Scenario(
     name: name,
     steps: List.unmodifiable(builderInstance._steps),
+    isEnabled: enabled,
   );
 }
 

@@ -4,3 +4,8 @@ docs/.DS_Store
 # Dart tooling directories
 .dart_tool/
 sdk/dart/.dart_tool/
+
+# Coverage artifacts
+coverage/
+sdk/dart/coverage/
+tests/acceptance/coverage/

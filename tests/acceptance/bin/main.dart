@@ -23,7 +23,11 @@ Future<void> main(List<String> args) async {
 }
 
 void _printScenarioHeading(ScenarioResult result) {
-  final status = result.isSuccess ? 'PASS' : 'FAIL';
+  final status = result.skipped
+      ? 'SKIP'
+      : result.isSuccess
+          ? 'PASS'
+          : 'FAIL';
   stdout.writeln('[$status] ${result.scenario.name}');
 }
 

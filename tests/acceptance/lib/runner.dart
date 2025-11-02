@@ -6,12 +6,14 @@ class ScenarioResult {
   ScenarioResult({
     required this.scenario,
     required this.steps,
+    this.skipped = false,
   });
 
   final Scenario scenario;
   final List<StepResult> steps;
+  final bool skipped;
 
-  bool get isSuccess => steps.every((step) => step.isSuccess);
+  bool get isSuccess => skipped || steps.every((step) => step.isSuccess);
 }
 
 class StepResult {
@@ -42,6 +44,13 @@ class ScenarioRunner {
   }
 
   Future<ScenarioResult> _runScenario(Scenario scenario) async {
+    if (!scenario.isEnabled) {
+      return ScenarioResult(
+        scenario: scenario,
+        steps: const [],
+        skipped: true,
+      );
+    }
     final state = ScenarioState();
     final steps = <StepResult>[];
     for (final step in scenario.steps) {

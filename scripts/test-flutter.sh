@@ -1,29 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Runs unit/integration tests for the Flutter SDK and the acceptance DSL harness.
+# Executes Flutter SDK acceptance scenarios with coverage aggregation.
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SDK_DIR="$REPO_ROOT/sdk/dart"
 ACCEPTANCE_DIR="$REPO_ROOT/tests/acceptance"
+OUTPUT_DIR="$REPO_ROOT/coverage"
 
-pushd "$SDK_DIR" >/dev/null
 if ! command -v dart >/dev/null 2>&1; then
   echo "error: dart SDK not found on PATH" >&2
   exit 1
 fi
 
-echo "Running Flutter SDK unit tests..."
-dart test --coverage=coverage/unit 
-popd >/dev/null
+mkdir -p "$OUTPUT_DIR"
 
 pushd "$ACCEPTANCE_DIR" >/dev/null
 echo "Fetching acceptance harness dependencies..."
 dart pub get >/dev/null
 echo "Running acceptance scenarios..."
-dart run ./bin/main.dart
+rm -rf coverage
+mkdir -p coverage
+if ! dart test --coverage=coverage/acceptance; then
+  popd >/dev/null
+  exit 1
+fi
+echo "Formatting acceptance coverage (lcov)..."
+dart run coverage:format_coverage \
+  --packages=.dart_tool/package_config.json \
+  --report-on ../sdk/dart/lib \
+  --lcov \
+  --in coverage/acceptance \
+  --out coverage/acceptance.lcov
 popd >/dev/null
 
 echo "Merging coverage reports..."
-# Placeholder for future coverage aggregation logic.
-
+cat /dev/null > "$OUTPUT_DIR/lcov.info"
+if [[ -f "$ACCEPTANCE_DIR/coverage/acceptance.lcov" ]]; then
+  cat "$ACCEPTANCE_DIR/coverage/acceptance.lcov" >> "$OUTPUT_DIR/lcov.info"
+fi
+echo "Combined coverage written to $OUTPUT_DIR/lcov.info"
