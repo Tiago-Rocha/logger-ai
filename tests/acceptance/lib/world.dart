@@ -104,6 +104,12 @@ class TestWorld {
       delegate: _delegate,
     );
     lastCollectorError = null;
+    configureBatchManager();
+    _sdk?.configureIntake(
+      batchManager: _batchManager,
+      persistence: _persistence,
+      delegate: _delegate,
+    );
   }
 
   Future<String> appendEvent(String recordId, {required String message}) async {
@@ -134,11 +140,17 @@ class TestWorld {
     return persistence.pendingBatches();
   }
 
+  Future<List<String>> pendingBatchFilenames() async {
+    final batches = await pendingBatches();
+    return batches.map((batch) => batch.filename).toList();
+  }
+
   void configureBatchManager({int? maxBatchesPerCycle}) {
     _batchManager = BatchManager(
       persistence: persistence,
       policy: LogUploadPolicy(maxBatchesPerCycle: maxBatchesPerCycle),
     );
+    _sdk?.configureIntake(batchManager: _batchManager);
   }
 
   Future<List<PendingBatch>> nextBatches() async {
@@ -177,7 +189,7 @@ class TestWorld {
 
   Future<void> markBatchUploaded(
     String filename, {
-    required String highWaterMark,
+    String? highWaterMark,
   }) async {
     await persistence.markBatchUploaded(
       filename,
@@ -197,11 +209,23 @@ class TestWorld {
         .toList();
   }
 
+  void configureUploadSuccess({Map<String, String>? highWaterMarks}) {
+    _uploadManager?.succeed(highWaterMarks: highWaterMarks);
+  }
+
+  void configureUploadFailure(Object error) {
+    _uploadManager?.failOnce(error);
+  }
+
+  List<List<PendingBatch>> uploadRequests() =>
+      List<List<PendingBatch>>.unmodifiable(_uploadManager?.uploads ?? const []);
+
   void _ensureSchedulingBootstrap() {
     deferredRuns = 0;
     lastCollectorError = null;
     _scheduler = FakeBackgroundScheduler();
     _uploadManager = FakeUploadManager();
+    _uploadManager!.succeed();
     _conditionEvaluator = FakeConditionEvaluator(
       onDenied: () => deferredRuns += 1,
     );
@@ -210,6 +234,13 @@ class TestWorld {
       uploadManager: _uploadManager!,
       conditionEvaluator: _conditionEvaluator!,
     );
+    if (_persistence != null || _batchManager != null || _delegate != null) {
+      _sdk!.configureIntake(
+        batchManager: _batchManager,
+        persistence: _persistence,
+        delegate: _delegate,
+      );
+    }
   }
 
   FakeBackgroundScheduler? _scheduler;
@@ -255,11 +286,40 @@ class FakeBackgroundScheduler implements BackgroundScheduler {
 
 class FakeUploadManager implements UploadManager {
   int invocationCount = 0;
+  final List<List<PendingBatch>> uploads = [];
+  bool _succeedNext = true;
+  Object _failureError = Exception('upload failed');
+  Map<String, String>? _nextHighWaterMarks;
+
+  void succeed({Map<String, String>? highWaterMarks}) {
+    _succeedNext = true;
+    _nextHighWaterMarks = highWaterMarks;
+  }
+
+  void failOnce(Object error) {
+    _succeedNext = false;
+    _failureError = error;
+  }
 
   @override
-  Future<UploadResult> runScheduledUpload() async {
+  Future<UploadResult> upload(List<PendingBatch> batches) async {
     invocationCount += 1;
-    return const UploadResult.success();
+    uploads.add(batches);
+    if (!_succeedNext) {
+      _succeedNext = true;
+      return UploadResult.failure(
+        error: _failureError,
+        failedFilenames: batches.map((b) => b.filename).toList(),
+      );
+    }
+
+    final map = <String, String>{};
+    for (final batch in batches) {
+      final override = _nextHighWaterMarks?[batch.filename];
+      map[batch.filename] = override ?? '';
+    }
+    _nextHighWaterMarks = null;
+    return UploadResult.success(batchHighWaterMarks: map);
   }
 }
 
@@ -304,6 +364,8 @@ typedef VoidCallback = void Function();
 class CollectingDelegate extends LoggerDelegate {
   final List<LogEvent> recordedEvents = [];
   final List<Object> rejectedErrors = [];
+  final List<List<String>> uploadSuccesses = [];
+  final List<Object> uploadFailures = [];
 
   @override
   void onEventRecorded(LogEvent event) {
@@ -313,5 +375,15 @@ class CollectingDelegate extends LoggerDelegate {
   @override
   void onEventRejected(String recordId, Object error) {
     rejectedErrors.add(error);
+  }
+
+  @override
+  void onUploadSuccess(List<String> batchFilenames) {
+    uploadSuccesses.add(List<String>.from(batchFilenames));
+  }
+
+  @override
+  void onUploadFailure(List<String> batchFilenames, Object error) {
+    uploadFailures.add(error);
   }
 }

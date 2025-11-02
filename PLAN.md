@@ -11,9 +11,9 @@
 - Update unit/integration suites to enforce ≥85% coverage once intake pipeline unit tests are in place.
 
 ## Phase 3 – Batching & Upload Orchestration
-- TDD the batch manager to respect policy thresholds and reuse across foreground/background runs.
-- Implement the upload manager with retry/backoff and delegate notifications, satisfying acceptance expectations.
-- Surface configuration inputs via `LoggerConfig`/`LogUploadPolicy` aligned with the DSL scenarios.
+- In progress: batch manager policy limits and upload orchestration scenarios (background execution, host notifications, retry after failure) are now green across acceptance and unit tests.
+- Next: extend the upload path with retry/backoff strategy and integrate high-water mark propagation/documentation.
+- Ensure configuration inputs remain surfaced via `LoggerConfig`/`LogUploadPolicy` as new behaviours land.
 
 ## Phase 4 – Background Scheduling & Delegates
 - Build the scheduling facade that interprets host policies, enforces constraints, and handles cancellation cleanup.

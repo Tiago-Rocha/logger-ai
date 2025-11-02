@@ -64,9 +64,13 @@ class _ConsoleUploadManager implements UploadManager {
   int invocationCount = 0;
 
   @override
-  Future<UploadResult> runScheduledUpload() async {
+  Future<UploadResult> upload(List<PendingBatch> batches) async {
     invocationCount += 1;
     print('UploadManager invoked (count=$invocationCount)');
-    return const UploadResult.success();
+    return UploadResult.success(
+      batchHighWaterMarks: {
+        for (final batch in batches) batch.filename: '',
+      },
+    );
   }
 }

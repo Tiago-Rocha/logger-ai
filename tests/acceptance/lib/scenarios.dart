@@ -9,6 +9,11 @@ final List<Scenario> allScenarios = [
     steps.given('the host configures a periodic upload policy',
         (context) async {
       final world = obtainWorld(context);
+      await world.configureCollector();
+      await world.appendEvent('CAD-1', message: 'scheduled');
+      world.configureUploadSuccess(
+        highWaterMarks: {'batch_001.jsonl': 'CAD-1'},
+      );
       await world.configurePeriodicUpload(const Duration(minutes: 15));
     });
     steps.when('the scheduler triggers a background run', (context) async {
@@ -42,6 +47,8 @@ final List<Scenario> allScenarios = [
     steps.given('the host requests uploads only on wi-fi while charging',
         (context) async {
       final world = obtainWorld(context);
+      await world.configureCollector();
+      await world.appendEvent('COND-1', message: 'conditional');
       await world.configureConstraints(
         const UploadConstraints(
           wifiOnly: true,
@@ -49,6 +56,9 @@ final List<Scenario> allScenarios = [
         ),
       );
       world.updateDeviceConditions(hasWifi: true, isCharging: true);
+      world.configureUploadSuccess(
+        highWaterMarks: {'batch_001.jsonl': 'COND-1'},
+      );
     });
     steps.when('the device does not meet the requested conditions',
         (context) async {
@@ -72,50 +82,90 @@ final List<Scenario> allScenarios = [
   scenario('Background processing continues outside the foreground session',
       (steps) {
     steps.given('background work has been registered', (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      await world.configureCollector();
+      await world.appendEvent('BG-1', message: 'background run');
+      world.configureUploadSuccess(highWaterMarks: {'batch_001.jsonl': 'BG-1'});
+      await world.configurePeriodicUpload(const Duration(minutes: 15));
     });
     steps.when('the app is no longer in the foreground', (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      await world.triggerBackgroundRun();
     });
     steps.then('scheduled uploads still attempt delivery', (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      expect(world.uploadManager.invocationCount, equals(1));
+      expect(world.uploadRequests().length, equals(1));
+      expect(await world.pendingBatchFilenames(), isEmpty);
+      expect(world.delegate.uploadSuccesses.length, equals(1));
     });
-  }, enabled: false),
+  }),
   scenario('Hosts receive delivery outcomes', (steps) {
     steps.given('there is a batch ready to upload', (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      await world.configureCollector();
+      await world.appendEvent('UP-S', message: 'success');
+      world.configureUploadSuccess(highWaterMarks: {'batch_001.jsonl': 'UP-S'});
+      await world.configurePeriodicUpload(const Duration(minutes: 5));
     });
     steps.when('the upload succeeds or fails', (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      await world.triggerBackgroundRun();
+      expect(world.delegate.uploadSuccesses.length, equals(1));
+
+      await world.appendEvent('UP-F', message: 'failure');
+      world.configureUploadFailure(Exception('network down'));
+      await world.triggerBackgroundRun();
     });
     steps.then('the host is notified of the result exactly once',
         (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      expect(world.delegate.uploadSuccesses.length, equals(1));
+      expect(world.delegate.uploadFailures.length, equals(1));
     });
-  }, enabled: false),
+  }),
   scenario('Completed batches do not resend', (steps) {
     steps.given('a batch was previously marked delivered', (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      await world.configureCollector();
+      await world.appendEvent('DONE-1', message: 'first');
+      world.configureUploadSuccess(highWaterMarks: {'batch_001.jsonl': 'DONE-1'});
+      await world.configurePeriodicUpload(const Duration(minutes: 10));
+      await world.triggerBackgroundRun();
+      expect(await world.pendingBatchFilenames(), isEmpty);
     });
     steps.when('the next upload window starts', (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      await world.triggerBackgroundRun();
     });
     steps.then('already acknowledged records are skipped', (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      expect(world.uploadManager.invocationCount, equals(1));
+      expect(world.uploadRequests().length, equals(1));
     });
-  }, enabled: false),
+  }),
   scenario('Interrupted uploads recover gracefully', (steps) {
     steps.given('an upload is in progress', (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      await world.configureCollector();
+      await world.appendEvent('FAIL-1', message: 'first');
+      await world.configurePeriodicUpload(const Duration(minutes: 3));
+      world.configureUploadFailure(Exception('timeout'));
     });
     steps.when('the operating system cancels the task', (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      await world.triggerBackgroundRun();
+      expect(world.delegate.uploadFailures.length, equals(1));
+      world.configureUploadSuccess(highWaterMarks: {'batch_001.jsonl': 'FAIL-1'});
+      await world.triggerBackgroundRun();
     });
     steps.then('state is cleaned up and the work is rescheduled',
         (context) async {
-      throw const PendingStep();
+      final world = obtainWorld(context);
+      expect(await world.pendingBatchFilenames(), isEmpty);
+      expect(world.delegate.uploadSuccesses.length, equals(1));
     });
-  }, enabled: false),
+  }),
   scenario('Persistence rotates batches when record limits are reached',
       (steps) {
     steps.given('file persistence rotates after two records', (context) async {

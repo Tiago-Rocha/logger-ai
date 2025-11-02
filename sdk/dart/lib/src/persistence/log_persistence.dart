@@ -152,10 +152,19 @@ class FileLogPersistence {
 
   Future<void> markBatchUploaded(
     String filename, {
-    required String highWaterMark,
+    String? highWaterMark,
   }) async {
     await _ensureInitialized();
     final file = _batchFile(filename);
+    String? derivedHighWaterMark =
+        highWaterMark == null || highWaterMark.isEmpty ? null : highWaterMark;
+    if (derivedHighWaterMark == null && await file.exists()) {
+      final lines = await file.readAsLines();
+      if (lines.isNotEmpty) {
+        final lastLine = lines.lastWhere((line) => line.isNotEmpty, orElse: () => lines.last);
+        derivedHighWaterMark = _extractRecordId(lastLine);
+      }
+    }
     if (await file.exists()) {
       await file.delete();
     }
@@ -172,7 +181,7 @@ class FileLogPersistence {
         : fileSystem.path.basename(remaining.first.path);
 
     _state = LogPersistenceState(
-      lastUploadedRecordId: highWaterMark,
+      lastUploadedRecordId: derivedHighWaterMark,
       activeBatchFile: nextActive,
     );
     await _writeMetadata();
