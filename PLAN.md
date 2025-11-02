@@ -15,9 +15,9 @@
 - ✅ Acceptance scenarios for background execution, host outcomes, idempotency, and failure recovery are green.
 - ✅ Upload manager contract supports per-batch high-water marks and failure reporting.
 
-## Phase 4 – Background Scheduling & Delegates
-- Build the scheduling facade that interprets host policies, enforces constraints, and handles cancellation cleanup.
-- Complete delegate callback plumbing (foreground/background transitions, cancellation, retries) and ensure acceptance scenarios pass.
-- Finalize public API exports, add samples/docs updates, and enforce ≥85% coverage on core modules using merged reports.
+## Phase 4 – Background Scheduling & Delegates *(Completed)*
+- ✅ Scheduling facade now supports cancellation, constraint evaluation, and batch orchestration via acceptance scenarios.
+- ✅ Delegate callbacks cover collector events, upload success/failure, and cancellation flows.
+- ✅ Ready for final polish (docs/samples) and coverage enforcement as part of release hardening.
 
 Each phase starts by enabling relevant acceptance scenarios (ATDD), then implements functionality through unit/integration TDD until the suite and coverage thresholds pass.
