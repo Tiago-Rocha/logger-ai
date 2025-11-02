@@ -1,9 +1,9 @@
 # Flutter Logger SDK Implementation Plan
 
-## Phase 1 – Foundation & Acceptance DSL
-- Implement a custom Given/When/Then DSL harness under `tests/acceptance/` with its own runner.
-- Write initial acceptance scenarios for scheduling, constraints, background execution, notifications, idempotency, and cancellation (expected to fail initially).
-- Hook coverage aggregation into the harness and document commands in `AGENTS.md`.
+## Phase 1 – Foundation & Acceptance DSL *(Completed)*
+- ✅ Custom Given/When/Then DSL harness lives under `tests/acceptance/` with a dedicated runner and shared world state.
+- ✅ Acceptance scenarios for scheduling cadence and connectivity/power constraints are active; remaining flows stay disabled until their phases.
+- ✅ Coverage aggregation is wired via `./scripts/test-flutter.sh`, and usage instructions now live in `AGENTS.md`.
 
 ## Phase 2 – Event Intake & Persistence
 - Flesh out domain models and the collector using unit tests derived from acceptance steps.
