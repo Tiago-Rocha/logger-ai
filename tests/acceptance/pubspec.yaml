@@ -1,0 +1,11 @@
+name: logger_acceptance_harness
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  collection: ^1.18.0
+  logger_sdk:
+    path: ../../sdk/dart
+
+dev_dependencies:
+  lints: ^4.0.0

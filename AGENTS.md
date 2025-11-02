@@ -5,6 +5,7 @@ Keep reference material in `docs/` and refresh `CrossPlatform_Logger_SDK_Summary
 
 ## Build, Test, and Development Commands
 Run `./gradlew lintDebug testDebugUnitTest assemble` inside `sdk/android` to lint, test, and build the AAR. Inside `sdk/ios`, call `xcodebuild -scheme LoggerSDK -destination 'platform=iOS Simulator,name=iPhone 15' build` and follow with `xcodebuild test` for XCTest. Use `./scripts/test-all.sh` to fan out both stacks plus shared verifiers, and keep the script idempotent for CI.
+For the Flutter SDK, run `dart test` inside `sdk/dart` for unit/integration coverage and `dart run tests/acceptance/bin/main.dart` to execute the acceptance DSL harness.
 
 ## Coding Style & Naming Conventions
 Follow Kotlin coding conventions (4-space indent) on Android and Swift API Design Guidelines on iOS (`UpperCamelCase` types, `lowerCamelCase` members). Log event keys and `recordId` values use `snake_case` to match backend analytics. File names mirror the primary type (`LogUploadPolicy.swift`, `LogBatchPersistence.kt`). Run `./scripts/format.sh` before committing so `ktlint` and `swiftformat` apply canonical formatting.
